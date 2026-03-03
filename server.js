@@ -122,4 +122,20 @@ app.get("/results", async (req, res) => {
   res.json(allResults);
 });
 
+// ✅ BIOMETRIC CHECK ROUTE (FIXED: moved outside)
+app.post("/check-biometric", async (req, res) => {
+  const { ghanaCard } = req.body;
+  
+  const voter = await Voter.findOne({ ghanaCard });
+  
+  if (!voter) {
+    return res.json({ registered: false });
+  }
+  
+  res.json({ 
+    registered: true,
+    name: voter.name
+  });
+});
+
 server.listen(5000, () => console.log("🚀 Server running on port 5000"));

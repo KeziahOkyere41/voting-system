@@ -480,6 +480,79 @@ window.onload = function() {
     })
     .catch(err => console.error("Error loading results:", err));
 };
+  let biometricVerified = false;
+let currentCard = '';
+
+// Simulate fingerprint scan
+function simulateFingerprint() {
+  const card = document.getElementById("card").value;
+  
+  if (!card) {
+    alert("Please enter Ghana Card number first");
+    return;
+  }
+  
+  currentCard = card;
+  
+  // Show scanning animation
+  const statusDiv = document.getElementById('fingerprintStatus');
+  const bioMessage = document.getElementById('bioMessage');
+  
+  statusDiv.innerHTML = '🔍 Scanning fingerprint...';
+  statusDiv.style.color = '#f39c12';
+  
+  // Simulate scanning delay
+  setTimeout(async () => {
+    // Check if this card has a fingerprint registered
+    const res = await fetch('/check-biometric', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ghanaCard: card })
+    });
+    
+    const data = await res.json();
+    
+    if (data.registered) {
+      statusDiv.innerHTML = '✅ Fingerprint matched!';
+      statusDiv.style.color = '#27ae60';
+      bioMessage.innerHTML = `Welcome, ${data.name}!`;
+      bioMessage.style.color = '#27ae60';
+      biometricVerified = true;
+      
+      // Show verify button
+      document.getElementById('verifyContainer').style.display = 'block';
+    } else {
+      statusDiv.innerHTML = '❌ Fingerprint not recognized';
+      statusDiv.style.color = '#e74c3c';
+      bioMessage.innerHTML = 'No biometric record found for this card';
+      biometricVerified = false;
+    }
+  }, 2000); // 2 second delay to simulate scanning
+}
+
+// Modified verify function
+async function verify() {
+  if (!biometricVerified) {
+    alert("Please scan fingerprint first");
+    return;
+  }
+
+  const res = await fetch("/verify", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ghanaCard: currentCard })
+  });
+
+  const data = await res.json();
+
+  if (data.success) {
+    currentVoter = data.voter;
+    document.getElementById("voteSection").style.display = "block";
+    document.getElementById("verifyContainer").style.display = "none";
+  } else {
+    alert("Verification Failed: " + (data.message || "Invalid card"));
+  }
+}
   </script>
 </head>
 <body>
@@ -495,6 +568,24 @@ window.onload = function() {
   <h2>Ghana Card Verification</h2>
       <input type="text" id="card" class="card-input" placeholder="Enter Ghana Card Number">
       <button onclick="verify()">Verify Card</button>
+
+<!-- Biometric simulation -->
+<div style="margin: 20px 0; text-align: center;">
+  <div id="fingerprintStatus" style="margin-bottom: 10px; color: #666;">
+    ⏳ Place finger on scanner
+  </div>
+  <button onclick="simulateFingerprint()" style="width: auto; padding: 15px 30px;">
+    👆 Scan Fingerprint
+  </button>
+  <p id="bioMessage" style="margin-top: 10px;"></p>
+</div>
+
+<!-- Hidden verify button - appears after fingerprint -->
+<div id="verifyContainer" style="display: none; text-align: center;">
+  <button onclick="verify()" style="width: auto; padding: 12px 30px; background: #27ae60;">
+    ✅ Proceed to Vote
+  </button>
+</div>
 
   <div id="voteSection" style="display:none;">
     <h3>Vote for President</h3>
