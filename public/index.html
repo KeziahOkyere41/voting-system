@@ -9,8 +9,14 @@
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   }
 
+  img{
+    height: 5%;
+    width: 30%;
+    margin-left: 3%;
+  }
+
   body {
-    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    background: #051d0b;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
@@ -28,40 +34,6 @@
     overflow: hidden;
   }
 
-  /* Ghana Flag Header */
-  .ghana-header {
-    height: 10px;
-    display: flex;
-    width: 100%;
-  }
-
-  .ghana-red {
-    background: #c8102e;
-    flex: 1;
-  }
-
-  .ghana-yellow {
-    background: #ffd100;
-    flex: 1;
-    position: relative;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-
-  .ghana-green {
-    background: #008751;
-    flex: 1;
-  }
-
-  .black-star {
-    color: black;
-    font-size: 8px;
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-  }
-
   .content {
     padding: 30px;
   }
@@ -76,12 +48,6 @@
     align-items: center;
     justify-content: center;
     gap: 10px;
-  }
-
-  h2:before, h2:after {
-    content: "⭐";
-    font-size: 20px;
-    color: #ffd100;
   }
 
   .card-input {
@@ -120,7 +86,6 @@
     margin-bottom: 20px;
     text-transform: uppercase;
     letter-spacing: 1px;
-    /* margin-left: 20px; */
   }
 
   button:hover {
@@ -167,11 +132,12 @@
   }
 
   #results {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     border-radius: 15px;
     padding: 20px;
     margin-top: 20px;
     color: white;
+    max-width: 250px;
+    margin-left: 20px;
   }
 
   #results h3 {
@@ -189,13 +155,13 @@
   }
 
   #resultsDisplay {
-    background: rgba(255,255,255,0.1);
+    background: #e1b800 !important;
     border-radius: 10px;
     padding: 15px;
   }
 
   #resultsDisplay h4 {
-    color: #ffd100;
+    color: black;
     margin: 15px 0 10px;
     font-size: 18px;
     border-bottom: 2px solid rgba(255,255,255,0.2);
@@ -214,18 +180,18 @@
     background: rgba(255,255,255,0.15);
     border-radius: 8px;
     font-size: 16px;
+    color: black;
   }
 
   #resultsDisplay p strong {
     flex: 1;
-    color: black;
+    color: rgb(3, 3, 3);
   }
 
   #resultsDisplay p .vote-count {
-    background: #ffd100;
-    color: #2c3e50;
+    background: white;
+    color: black;
     padding: 4px 12px;
-    border-radius: 20px;
     font-weight: bold;
     font-size: 14px;
   }
@@ -234,7 +200,7 @@
     display: block;
     text-align: center;
     margin-top: 15px;
-    color: rgba(255,255,255,0.7);
+    color: black !important;
     font-style: italic;
     font-size: 12px;
   }
@@ -281,10 +247,6 @@
   .results-updated {
     animation: pulse 0.5s ease;
   }
-
-  /* #resultsDisplay p{
-    background: black;
-  } */
 
   #resultsDisplay {
     background: rgb(12 12 12 / 35%);
@@ -337,22 +299,39 @@
   .vote-count {
     font-weight: bold;
     color: #27ae60;
+    background: white;
   }
+
 </style>
   <title>Online Voting</title>
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <script>
   let currentVoter;
+  let biometricVerified = false;
+  let currentCard = '';
 
   async function verify() {
-    const card = document.getElementById("card").value;
-    console.log("Verifying card:", card);
+    console.log("🔍 Verify function called");
+    console.log("Current card:", currentCard);
+    console.log("Biometric verified:", biometricVerified);
+
+    if (!biometricVerified) {
+      alert("Please scan fingerprint first");
+      return;
+    }
+
+    if (!currentCard) {
+      alert("Card number is missing");
+      return;
+    }
+
+    console.log("Sending to server:", { ghanaCard: currentCard });
 
     try {
       const res = await fetch("/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ghanaCard: card })
+        body: JSON.stringify({ ghanaCard: currentCard })
       });
 
       const data = await res.json();
@@ -361,9 +340,10 @@
       if (data.success) {
         currentVoter = data.voter;
         document.getElementById("voteSection").style.display = "block";
+        document.getElementById("verifyContainer").style.display = "none";
         alert(`Welcome ${data.voter.name}!`);
       } else {
-        alert("Verification Failed: Invalid card or already voted");
+        alert("Verification Failed: " + (data.message || "Invalid card"));
       }
     } catch (error) {
       console.error("Error:", error);
@@ -398,6 +378,9 @@
 
       if (data.success) {
         alert("Vote Submitted Successfully!");
+        setTimeout(() => {
+           window.location.reload();
+        }, 1000);
         document.getElementById("voteSection").style.display = "none";
       } else {
         alert("Vote failed: " + (data.message || "Unknown error"));
@@ -408,181 +391,173 @@
     }
   }
 
-// Socket connection for live results
-const socket = io();
+  // Socket connection for live results
+  const socket = io();
 
-socket.on("connect", () => console.log("✅ Connected to real-time server"));
+  socket.on("connect", () => console.log("✅ Connected to real-time server"));
 
-socket.on("liveResults", data => {
-  console.log("🔥 Live Results Update:", data);
-  
-  const resultsDiv = document.getElementById('resultsDisplay');
-  if (!resultsDiv) return;
-  
-  resultsDiv.innerHTML = '<h4>Presidential Results</h4>';
-  
-  // Presidential results
-  const presResults = {};
-  // MP results
-  const mpResults = {};
-  
-  data.forEach(item => {
-    if (item._id && item._id.president) {
-      presResults[item._id.president] = item.total;
+  // FIXED: Live results with null checks
+  socket.on("liveResults", data => {
+    console.log("🔥 Live Results Update:", data);
+    
+    const resultsDiv = document.getElementById('resultsDisplay');
+    if (!resultsDiv) return;
+    
+    let html = '<h4>📊 Presidential Results</h4>';
+    
+    // Safely filter presidential results
+    const presResults = Array.isArray(data) ? data.filter(item => item?._id?.president) : [];
+    
+    if (presResults.length === 0) {
+      html += '<p>No presidential votes yet</p>';
+    } else {
+      presResults.forEach(item => {
+        html += `<p><strong>${item._id.president}</strong>: <span class="vote-count">${item.total}</span> votes</p>`;
+      });
     }
-    if (item._id && item._id.mp) {
-      mpResults[item._id.mp] = item.total;
+    
+    html += '<h4 style="margin-top:20px;">🗳️ MP Results</h4>';
+    
+    // Safely filter MP results
+    const mpResults = Array.isArray(data) ? data.filter(item => item?._id?.mp) : [];
+    
+    if (mpResults.length === 0) {
+      html += '<p>No MP votes yet</p>';
+    } else {
+      mpResults.forEach(item => {
+        html += `<p><strong>${item._id.mp}</strong>: <span class="vote-count">${item.total}</span> votes</p>`;
+      });
     }
+    
+    // Add timestamp
+    html += `<small>Last updated: ${new Date().toLocaleTimeString()}</small>`;
+    
+    resultsDiv.innerHTML = html;
   });
-  
-  // Display presidential results
-  if (Object.keys(presResults).length === 0) {
-    resultsDiv.innerHTML += '<p>No presidential votes yet</p>';
-  } else {
-    for (let [candidate, votes] of Object.entries(presResults)) {
-      resultsDiv.innerHTML += `<p><strong>${candidate}</strong>: ${votes} votes</p>`;
-    }
-  }
-  
-  resultsDiv.innerHTML += '<h4>MP Results</h4>';
-  
-  // Display MP results
-  if (Object.keys(mpResults).length === 0) {
-    resultsDiv.innerHTML += '<p>No MP votes yet</p>';
-  } else {
-    for (let [candidate, votes] of Object.entries(mpResults)) {
-      resultsDiv.innerHTML += `<p><strong>${candidate}</strong>: ${votes} votes</p>`;
-    }
-  }
-  
-  // Add timestamp
-  resultsDiv.innerHTML += `<small>Last updated: ${new Date().toLocaleTimeString()}</small>`;
-});
 
-// Load initial results when page loads
-window.onload = function() {
-  fetch('/results')
-    .then(r => r.json())
-    .then(data => {
-      console.log("Initial results:", data);
-      const resultsDiv = document.getElementById('resultsDisplay');
-      if (resultsDiv) {
-        resultsDiv.innerHTML = '<h4>Presidential Results</h4>';
+  // FIXED: Load initial results with null checks
+  window.onload = function() {
+    fetch('/results')
+      .then(r => r.json())
+      .then(data => {
+        console.log("Initial results:", data);
+        const resultsDiv = document.getElementById('resultsDisplay');
+        if (!resultsDiv) return;
         
-        if (data.length === 0) {
-          resultsDiv.innerHTML += '<p>No votes yet</p>';
+        let html = '<h4>📊 Presidential Results</h4>';
+        
+        // Safely filter presidential results
+        const presResults = Array.isArray(data) ? data.filter(item => item?._id?.president) : [];
+        
+        if (presResults.length === 0) {
+          html += '<p>No presidential votes yet</p>';
         } else {
-          data.forEach(item => {
-            resultsDiv.innerHTML += `<p><strong>${item._id.president}</strong>: ${item.total} votes</p>`;
+          presResults.forEach(item => {
+            html += `<p><strong>${item._id.president}</strong>: <span class="vote-count">${item.total}</span> votes</p>`;
           });
         }
-      }
-    })
-    .catch(err => console.error("Error loading results:", err));
-};
-  let biometricVerified = false;
-let currentCard = '';
+        
+        html += '<h4 style="margin-top:20px;">🗳️ MP Results</h4>';
+        
+        // Safely filter MP results
+        const mpResults = Array.isArray(data) ? data.filter(item => item?._id?.mp) : [];
+        
+        if (mpResults.length === 0) {
+          html += '<p>No MP votes yet</p>';
+        } else {
+          mpResults.forEach(item => {
+            html += `<p><strong>${item._id.mp}</strong>: <span class="vote-count">${item.total}</span> votes</p>`;
+          });
+        }
+        
+        resultsDiv.innerHTML = html;
+      })
+      .catch(err => {
+        console.error("Error loading results:", err);
+        document.getElementById('resultsDisplay').innerHTML = '<p>Error loading results</p>';
+      });
+  };
 
-// Simulate fingerprint scan
-function simulateFingerprint() {
-  const card = document.getElementById("card").value;
-  
-  if (!card) {
-    alert("Please enter Ghana Card number first");
-    return;
-  }
-  
-  currentCard = card;
-  
-  // Show scanning animation
-  const statusDiv = document.getElementById('fingerprintStatus');
-  const bioMessage = document.getElementById('bioMessage');
-  
-  statusDiv.innerHTML = '🔍 Scanning fingerprint...';
-  statusDiv.style.color = '#f39c12';
-  
-  // Simulate scanning delay
-  setTimeout(async () => {
-    // Check if this card has a fingerprint registered
-    const res = await fetch('/check-biometric', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ghanaCard: card })
-    });
+  // Simulate fingerprint scan
+  function simulateFingerprint() {
+    const card = document.getElementById("card").value.trim();
     
-    const data = await res.json();
-    
-    if (data.registered) {
-      statusDiv.innerHTML = '✅ Fingerprint matched!';
-      statusDiv.style.color = '#27ae60';
-      bioMessage.innerHTML = `Welcome, ${data.name}!`;
-      bioMessage.style.color = '#27ae60';
-      biometricVerified = true;
-      
-      // Show verify button
-      document.getElementById('verifyContainer').style.display = 'block';
-    } else {
-      statusDiv.innerHTML = '❌ Fingerprint not recognized';
-      statusDiv.style.color = '#e74c3c';
-      bioMessage.innerHTML = 'No biometric record found for this card';
-      biometricVerified = false;
+    if (!card) {
+      alert("Please enter Ghana Card number first");
+      return;
     }
-  }, 2000); // 2 second delay to simulate scanning
-}
-
-// Modified verify function
-async function verify() {
-  if (!biometricVerified) {
-    alert("Please scan fingerprint first");
-    return;
+    
+    currentCard = card;
+    
+    // Show scanning animation
+    const statusDiv = document.getElementById('fingerprintStatus');
+    const bioMessage = document.getElementById('bioMessage');
+    
+    statusDiv.innerHTML = '🔍 Scanning fingerprint...';
+    statusDiv.style.color = '#f39c12';
+    bioMessage.innerHTML = '';
+    
+    // Simulate scanning delay
+    setTimeout(async () => {
+      try {
+        // Check if this card has a fingerprint registered
+        const res = await fetch('/check-biometric', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ghanaCard: card })
+        });
+        
+        const data = await res.json();
+        console.log("Biometric response:", data);
+        
+        if (data.registered) {
+          statusDiv.innerHTML = '✅ Fingerprint matched!';
+          statusDiv.style.color = '#27ae60';
+          bioMessage.innerHTML = `Welcome, ${data.name}!`;
+          bioMessage.style.color = '#27ae60';
+          biometricVerified = true;
+          
+          // Show verify button
+          document.getElementById('verifyContainer').style.display = 'block';
+        } else {
+          statusDiv.innerHTML = '❌ Fingerprint not recognized';
+          statusDiv.style.color = '#e74c3c';
+          bioMessage.innerHTML = 'No biometric record found for this card';
+          biometricVerified = false;
+          document.getElementById('verifyContainer').style.display = 'none';
+        }
+      } catch (error) {
+        console.error("Error:", error);
+        statusDiv.innerHTML = '❌ Error checking fingerprint';
+        statusDiv.style.color = '#e74c3c';
+      }
+    }, 2000); // 2 second delay to simulate scanning
   }
-
-  const res = await fetch("/verify", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ghanaCard: currentCard })
-  });
-
-  const data = await res.json();
-
-  if (data.success) {
-    currentVoter = data.voter;
-    document.getElementById("voteSection").style.display = "block";
-    document.getElementById("verifyContainer").style.display = "none";
-  } else {
-    alert("Verification Failed: " + (data.message || "Invalid card"));
-  }
-}
   </script>
 </head>
 <body>
-  <div class="container">
-    <!-- Ghana Flag -->
-    <div class="ghana-header">
-      <div class="ghana-red"></div>
-      <div class="ghana-yellow">
-        <span class="black-star">⭐</span>
-      </div>
-      <div class="ghana-green"></div>
-    </div>
-  <h2>Ghana Card Verification</h2>
-      <input type="text" id="card" class="card-input" placeholder="Enter Ghana Card Number">
-      <button onclick="verify()">Verify Card</button>
 
-<!-- Biometric simulation -->
-<div style="margin: 20px 0; text-align: center;">
-  <div id="fingerprintStatus" style="margin-bottom: 10px; color: #666;">
+  <div class="container">
+        <div style="display: flex; justify-content: center; padding-top: 30px;">
+      <img src="https://www.citypng.com/public/uploads/preview/hd-ghana-coat-of-arms-logo-png-7017516947754299amhvbcau9.png">
+      </div>
+    <br>
+  <h2>VERIFY YOUR GHANA CARD</h2>
+      <input type="text" id="card" class="card-input" placeholder="Enter Ghana Card Number">
+
+  <div style="margin: 20px 0; text-align: center;">
+  <div id="fingerprintStatus" style="margin-bottom: 10px; padding: 15px; background: #f8f9fa; border-radius: 10px; color: #666;">
     ⏳ Place finger on scanner
   </div>
-  <button onclick="simulateFingerprint()" style="width: auto; padding: 15px 30px;">
-    👆 Scan Fingerprint
+  <button onclick="simulateFingerprint()" style="width: auto; padding: 15px 30px; background: #34495e;">
+    👆 Biometric Verification
   </button>
-  <p id="bioMessage" style="margin-top: 10px;"></p>
+  <p id="bioMessage" style="margin-top: 10px; min-height: 20px;"></p>
 </div>
 
 <!-- Hidden verify button - appears after fingerprint -->
-<div id="verifyContainer" style="display: none; text-align: center;">
-  <button onclick="verify()" style="width: auto; padding: 12px 30px; background: #27ae60;">
+<div id="verifyContainer" style="display: none; text-align: center; margin: 15px 0;">
+  <button onclick="verify()" style="width: auto; padding: 12px 30px; background: #27ae60; border: none; border-radius: 50px; color: white; font-weight: bold; cursor: pointer;">
     ✅ Proceed to Vote
   </button>
 </div>
@@ -590,14 +565,14 @@ async function verify() {
   <div id="voteSection" style="display:none;">
     <h3>Vote for President</h3>
     <select id="president">
-      <option value="Candidate A">Candidate A</option>
-      <option value="Candidate B">Candidate B</option>
+      <option value="John Mahama">John Mahama (NDC)</option>
+      <option value="Nana Akufo-Addo">Nana Akufo-Addo (NPP)</option>
     </select>
 
     <h3>Vote for MP</h3>
     <select id="mp">
-      <option value="MP 1">MP 1</option>
-      <option value="MP 2">MP 2</option>
+      <option value="Rashid Bawa">Rashid Bawa (NDC)</option>
+      <option value="Farouk Mahama">Farouk Mahama (NPP)</option>
     </select>
 
     <button onclick="submitVote()">Submit Vote</button>
@@ -608,7 +583,7 @@ async function verify() {
     <div id="resultsDisplay">Loading results...</div>
   </div>
   <div class="footer-note">
-    <span>🇬🇭</span> Your Vote, Your Voice<span>🇬🇭</span>
+    <span>🇬🇭</span> Your Vote, Your Voice <span>🇬🇭</span>
   </div>
 </body>
 </html>

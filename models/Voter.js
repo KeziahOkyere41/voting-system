@@ -6,8 +6,8 @@ const voterSchema = new mongoose.Schema({
   region: String,
   constituency: String,
   hasVoted: { type: Boolean, default: false },
-  fingerprintRegistered: { type: Boolean, default: true }, // All voters have fingerprint on file
-  fingerprintHash: String // In real system, this would be encrypted
+  fingerprintRegistered: { type: Boolean, default: true },
+  fingerprintHash: String
 });
 
 module.exports = mongoose.model("Voter", voterSchema);
